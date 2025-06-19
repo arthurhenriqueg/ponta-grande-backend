@@ -7,8 +7,6 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Serve arquivos estáticos do build do React
-app.use(express.static(path.join(process.cwd(), 'dist')));
 // Serve arquivos PDF para download
 app.use('/downloads', express.static(path.join(process.cwd(), 'public/downloads')));
 
@@ -50,10 +48,7 @@ app.delete('/api/delete/:fileName', (req, res) => {
   }
 });
 
-// Para qualquer rota que não seja API ou download, retorna o index.html do React
-app.get(/^\/(?!api|downloads).*/, (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
-});
+// Rota padrão removida, pois não estamos servindo frontend no backend
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
