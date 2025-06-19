@@ -8,25 +8,27 @@ const app = express();
 app.use(cors());
 
 // Serve arquivos PDF para download
-app.use('/downloads', express.static(path.join(process.cwd(), 'public/downloads')));
+app.use('/downloads', express.static(path.join(process.cwd(), 'downloads')));
 
 // Configuração do multer para salvar na pasta correta
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), 'public/downloads'));
+    cb(null, path.join(process.cwd(), 'downloads'));
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname); // mantém o nome original
+    cb(null, file.originalname);
   }
 });
 const upload = multer({ storage });
 
 // Listar arquivos
 app.get('/api/files', (req, res) => {
-  const dir = path.join(process.cwd(), 'public/downloads');
+  const dir = path.join(process.cwd(), 'downloads');
   fs.readdir(dir, (err, files) => {
-    if (err) return res.status(500).json({ error: 'Erro ao listar arquivos' });
-    // Só arquivos PDF
+    if (err) {
+      console.error("Erro ao listar arquivos:", err);
+      return res.status(500).json({ error: 'Erro ao listar arquivos' });
+    }
     res.json(files.filter(f => f.endsWith('.pdf')));
   });
 });
@@ -39,7 +41,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // Excluir arquivo
 app.delete('/api/delete/:fileName', (req, res) => {
-  const filePath = path.join(process.cwd(), 'public/downloads', req.params.fileName);
+  const filePath = path.join(process.cwd(), 'downloads', req.params.fileName);
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
     res.sendStatus(200);
@@ -47,8 +49,6 @@ app.delete('/api/delete/:fileName', (req, res) => {
     res.sendStatus(404);
   }
 });
-
-// Rota padrão removida, pois não estamos servindo frontend no backend
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
