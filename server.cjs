@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Listar arquivos
+// --- INÍCIO: Endpoints de arquivos ---
 app.get('/api/files', (req, res) => {
   const dir = path.join(process.cwd(), 'downloads');
   fs.readdir(dir, (err, files) => {
@@ -34,13 +34,11 @@ app.get('/api/files', (req, res) => {
   });
 });
 
-// Upload de arquivo
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).send('Nenhum arquivo enviado.');
   res.json({ fileName: req.file.originalname });
 });
 
-// Excluir arquivo
 app.delete('/api/delete/:fileName', (req, res) => {
   const filePath = path.join(process.cwd(), 'downloads', req.params.fileName);
   if (fs.existsSync(filePath)) {
@@ -50,6 +48,13 @@ app.delete('/api/delete/:fileName', (req, res) => {
     res.sendStatus(404);
   }
 });
+// --- FIM: Endpoints de arquivos ---
+
+// --- INÍCIO: Endpoint de health check para uptime ---
+app.get('/api/ping', (req, res) => {
+  res.send('pong');
+});
+// --- FIM: Endpoint de health check para uptime ---
 
 // --- INÍCIO: Persistência de setores e demandas no backend ---
 const DATA_FILE = path.join(process.cwd(), 'action-plan-data.json');
@@ -64,17 +69,16 @@ function readData() {
     return { items: [], categorias: [] };
   }
 }
+
 function writeData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Listar setores e demandas
 app.get('/api/action-plan', (req, res) => {
   const data = readData();
   res.json(data);
 });
 
-// Salvar setores e demandas (substitui tudo)
 app.post('/api/action-plan', (req, res) => {
   const { items, categorias } = req.body;
   if (!Array.isArray(items) || !Array.isArray(categorias)) {
