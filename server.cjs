@@ -6,6 +6,7 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 // Serve arquivos PDF para download
 app.use('/downloads', express.static(path.join(process.cwd(), 'downloads')));
@@ -49,6 +50,40 @@ app.delete('/api/delete/:fileName', (req, res) => {
     res.sendStatus(404);
   }
 });
+
+// --- INÍCIO: Persistência de setores e demandas no backend ---
+const DATA_FILE = path.join(process.cwd(), 'action-plan-data.json');
+
+function readData() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    }
+    return { items: [], categorias: [] };
+  } catch (e) {
+    return { items: [], categorias: [] };
+  }
+}
+function writeData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// Listar setores e demandas
+app.get('/api/action-plan', (req, res) => {
+  const data = readData();
+  res.json(data);
+});
+
+// Salvar setores e demandas (substitui tudo)
+app.post('/api/action-plan', (req, res) => {
+  const { items, categorias } = req.body;
+  if (!Array.isArray(items) || !Array.isArray(categorias)) {
+    return res.status(400).json({ error: 'Dados inválidos' });
+  }
+  writeData({ items, categorias });
+  res.json({ ok: true });
+});
+// --- FIM: Persistência de setores e demandas no backend ---
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
