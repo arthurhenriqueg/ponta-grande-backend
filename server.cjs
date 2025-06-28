@@ -89,5 +89,104 @@ app.post('/api/action-plan', (req, res) => {
 });
 // --- FIM: Persistência de setores e demandas no backend ---
 
+// --- INÍCIO: Galeria de Fotos Compartilhada ---
+const PHOTOS_DIR = path.join(process.cwd(), 'photos');
+const PHOTOS_DATA_FILE = path.join(process.cwd(), 'photos-data.json');
+
+// Garante que a pasta existe
+if (!fs.existsSync(PHOTOS_DIR)) {
+  fs.mkdirSync(PHOTOS_DIR);
+}
+
+// Configuração do multer para fotos
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, PHOTOS_DIR);
+  },
+  filename: (req, file, cb) => {
+    // Evita sobrescrever arquivos com o mesmo nome
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, path.basename(file.originalname, ext) + '-' + uniqueSuffix + ext);
+  }
+});
+const photoUpload = multer({
+  storage: photoStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+function readPhotosData() {
+  try {
+    if (fs.existsSync(PHOTOS_DATA_FILE)) {
+      return JSON.parse(fs.readFileSync(PHOTOS_DATA_FILE, 'utf8'));
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+function writePhotosData(data) {
+  fs.writeFileSync(PHOTOS_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// Upload de foto
+app.post('/api/photos/upload', photoUpload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).send('Nenhuma imagem enviada.');
+  const { uploader } = req.body; // nome ou id do usuário
+  const meta = {
+    fileName: req.file.filename,
+    originalName: req.file.originalname,
+    uploadDate: new Date().toISOString(),
+    uploader: uploader || 'desconhecido'
+  };
+  const data = readPhotosData();
+  data.push(meta);
+  writePhotosData(data);
+  res.json(meta);
+});
+
+// Listar fotos agrupadas por data (YYYY-MM-DD)
+app.get('/api/photos', (req, res) => {
+  const data = readPhotosData();
+  // Agrupa por data (YYYY-MM-DD)
+  const grouped = {};
+  data.forEach(meta => {
+    const date = meta.uploadDate.slice(0, 10);
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(meta);
+  });
+  res.json(grouped);
+});
+
+// Servir imagem
+app.get('/photos/:fileName', (req, res) => {
+  const filePath = path.join(PHOTOS_DIR, req.params.fileName);
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.sendStatus(404);
+  }
+});
+
+// Deletar imagem
+app.delete('/api/photos/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const filePath = path.join(PHOTOS_DIR, fileName);
+  let data = readPhotosData();
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    data = data.filter(meta => meta.fileName !== fileName);
+    writePhotosData(data);
+    res.sendStatus(200);
+  } else {
+    res.sendStatus(404);
+  }
+});
+// --- FIM: Galeria de Fotos Compartilhada ---
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
